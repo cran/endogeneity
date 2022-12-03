@@ -75,16 +75,41 @@ predict.pln = function(model, data=NULL, type="response"){
 
 
 #' Poisson Lognormal Model
-#' @description Estimate a Poisson model with a log-normally distributed heterogeneity term. Also referred to as Poisson-Normal model.
+#' @description Estimate a Poisson model with a log-normally distributed heterogeneity term, which is also referred to as the Poisson-Normal model.\cr\cr
+#' \deqn{E[y_i|x_i,u_i]=exp(\boldsymbol{\alpha}'\mathbf{x_i}+\lambda u_i)}{E[y_i | x_i, u_i] = exp(\alpha' * x_i + \lambda * u_i)}
+#' The estimates of this model are often similar to those of a negative binomial model.
 #' @param form Formula
 #' @param data Input data, a data frame
 #' @param par Starting values for estimates
 #' @param method Optimization algorithm.
 #' @param init Initialization method
 #' @param H Number of quadrature points
-#' @param accu 1e12 for low accuracy; 1e7 for moderate accuracy; 10.0 for extremely high accuracy. See optim
-#' @param verbose Level of output during estimation. Lowest is 0.
-#' @return A list containing the results of the estimated model
+#' @param verbose A integer indicating how much output to display during the estimation process.
+#' * <0 - No ouput
+#' * 0 - Basic output (model estimates)
+#' * 1 - Moderate output, basic ouput + parameter and likelihood in each iteration
+#' * 2 - Extensive output, moderate output + gradient values on each call
+#' @return A list containing the results of the estimated model, some of which are inherited from the return of maxLik
+#' * estimates: Model estimates with 95% confidence intervals
+#' * estimate or par: Point estimates
+#' * variance_type: covariance matrix used to calculate standard errors. Either BHHH or Hessian.
+#' * var: covariance matrix
+#' * se: standard errors
+#' * gradient: Gradient function at maximum
+#' * hessian: Hessian matrix at maximum
+#' * gtHg: \eqn{g'H^-1g}, where H^-1 is simply the covariance matrix. A value close to zero (e.g., <1e-3 or 1e-6) indicates good convergence.
+#' * LL or maximum: Likelihood
+#' * AIC: AIC
+#' * BIC: BIC
+#' * n_obs: Number of observations
+#' * n_par: Number of parameters
+#' * LR_stat: Likelihood ratio test statistic for the heterogeneity term \eqn{\lambda=0}
+#' * LR_p: p-value of likelihood ratio test
+#' * iterations: number of iterations taken to converge
+#' * message: Message regarding convergence status.
+#'
+#' Note that the list inherits all the components in the output of maxLik. See the documentation of maxLik for more details.
+#' @md
 #' @examples
 #' library(MASS)
 #' N = 2000
@@ -96,10 +121,10 @@ predict.pln = function(model, data=NULL, type="response"){
 #' z = rnorm(N)
 #' y = rpois(N, exp(-1 + x + z + 0.5 * rnorm(N)))
 #' est = pln(y~x+z)
-#' est$estimates
+#' print(est$estimates, digits=3)
 #' @export
-#' @references Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at SSRN: https://ssrn.com/abstract=3494856
-pln = function(form, data=NULL, par=NULL, method='BFGS', init=c('zero', 'unif', 'norm', 'default')[4], H=20, verbose=0, accu=1e4){
+#' @references Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at https://doi.org/10.1287/isre.2022.1113
+pln = function(form, data=NULL, par=NULL, method='BFGS', init=c('zero', 'unif', 'norm', 'default')[4], H=20, verbose=0){
     # 1.1 parse y~x
     mf = model.frame(form, data=data, na.action=NULL, drop.unused.levels=TRUE)
     y = model.response(mf, "numeric")
@@ -118,7 +143,7 @@ pln = function(form, data=NULL, par=NULL, method='BFGS', init=c('zero', 'unif', 
     begin = Sys.time()
 
     # optim
-    # res = optim(par=par, fn=LL_pln, gr=NULL, method=method, control=list(factr=accu,fnscale=-1), y=y, x=x, H=H, verbose=verbose, hessian = TRUE)
+    # res = optim(par=par, fn=LL_pln, gr=NULL, method=method, control=list(fnscale=-1), y=y, x=x, H=H, verbose=verbose, hessian = TRUE)
 
     # use maxLik (identical estimate with optim, but more reliable SE)
     res = maxLik(LL_pln, grad=gradient_pln, start=par, method=method, y=y, x=x, H=H, verbose=verbose)
@@ -134,7 +159,7 @@ pln = function(form, data=NULL, par=NULL, method='BFGS', init=c('zero', 'unif', 
     res$iter = endogeneity.env$iter
     res$formula = form
 
-    if(verbose>0){
+    if(verbose>=0){
         cat(sprintf('==== Converged after %d iterations, LL=%.2f, gtHg=%.6f **** \n', res$iterations, res$LL, res$gtHg))
         cat(sprintf('LR test of rho=0, chi2(1)=%.3f, p-value=%.4f\n', res$LR_stat, res$LR_p))
         print(res$time <- Sys.time() - begin)

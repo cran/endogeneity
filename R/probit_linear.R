@@ -71,21 +71,48 @@ Gradient_probit_linear = function(par,y,z,x,w,verbose=1,variance=FALSE){
 }
 
 #' Recursive Probit-Linear Model
-#' @description Estimate probit and linear models with bivariate normally distributed error terms. This command supports two models with opposite first and second stages.
-#'
-#' 1) Recursive Probit-Linear: the endogenous treatment effect model\cr
-#' 2) Recursive Linear-Probit: the ivprobit model. The identification of this model requires an instrument.
-#'
-#' This command still works if the first-stage dependent variable is not a regressor in the second stage.
+#' @description Estimate probit and linear models with bivariate normally distributed error terms.\cr\cr
+#' First stage (Probit):
+#' \deqn{m_i=1(\boldsymbol{\alpha}'\mathbf{w_i}+u_i>0)}{m_i = 1(\alpha' * w_i + u_i > 0)}
+#' Second stage (Linear):
+#' \deqn{y_i = \boldsymbol{\beta}'\mathbf{x_i} + {\gamma}m_i + \sigma v_i}{y_i = \beta' * x_i + \gamma * m_i + \sigma * v_i}
+#' Endogeneity structure:
+#' \eqn{u_i} and \eqn{v_i} are bivariate normally distributed with a correlation of \eqn{\rho}. \cr\cr
+#' w and x can be the same set of variables. Identification can be weak if w are not good predictors of m. This model still works if the first-stage dependent variable is not a regressor in the second stage.
 #' @param form_probit Formula for the probit model
 #' @param form_linear Formula for the linear model
 #' @param data Input data, a data frame
 #' @param par Starting values for estimates
 #' @param init Initialization method
 #' @param method Optimization algorithm. Default is BFGS
-#' @param accu 1e12 for low accuracy; 1e7 for moderate accuracy; 10.0 for extremely high accuracy. See optim
-#' @param verbose Level of output during estimation. Lowest is 0.
-#' @return A list containing the results of the estimated model
+#' @param verbose A integer indicating how much output to display during the estimation process.
+#' * <0 - No ouput
+#' * 0 - Basic output (model estimates)
+#' * 1 - Moderate output, basic ouput + parameter and likelihood in each iteration
+#' * 2 - Extensive output, moderate output + gradient values on each call
+#' @return A list containing the results of the estimated model, some of which are inherited from the return of maxLik
+#' * estimates: Model estimates with 95% confidence intervals
+#' * estimate or par: Point estimates
+#' * variance_type: covariance matrix used to calculate standard errors. Either BHHH or Hessian.
+#' * var: covariance matrix
+#' * se: standard errors
+#' * var_bhhh: BHHH covariance matrix, inverse of the outer product of gradient at the maximum
+#' * se_bhhh: BHHH standard errors
+#' * gradient: Gradient function at maximum
+#' * hessian: Hessian matrix at maximum
+#' * gtHg: \eqn{g'H^-1g}, where H^-1 is simply the covariance matrix. A value close to zero (e.g., <1e-3 or 1e-6) indicates good convergence.
+#' * LL or maximum: Likelihood
+#' * AIC: AIC
+#' * BIC: BIC
+#' * n_obs: Number of observations
+#' * n_par: Number of parameters
+#' * LR_stat: Likelihood ratio test statistic for \eqn{\rho=0}
+#' * LR_p: p-value of likelihood ratio test
+#' * iterations: number of iterations taken to converge
+#' * message: Message regarding convergence status.
+#'
+#' Note that the list inherits all the components in the output of maxLik. See the documentation of maxLik for more details.
+#' @md
 #' @examples
 #' library(MASS)
 #' N = 2000
@@ -99,15 +126,15 @@ Gradient_probit_linear = function(par,y,z,x,w,verbose=1,variance=FALSE){
 #' e1 = e[,1]
 #' e2 = e[,2]
 #'
-#' y1 = as.numeric(1 + x + z + e1 > 0)
-#' y2 = 1 + x + z + y1 + e2
+#' m = as.numeric(1 + x + z + e1 > 0)
+#' y = 1 + x + z + m + e2
 #'
-#' est = probit_linear(y1~x+z, y2~x+z+y1)
-#' est$estimates
+#' est = probit_linear(m~x+z, y~x+z+m)
+#' print(est$estimates, digits=3)
 #' @export
 #' @family endogeneity
-#' @references Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at SSRN: https://ssrn.com/abstract=3494856
-probit_linear = function(form_probit, form_linear, data=NULL, par=NULL, method='BFGS', init=c('zero', 'unif', 'norm', 'default')[4], verbose=0, accu=1e4){
+#' @references Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at https://doi.org/10.1287/isre.2022.1113
+probit_linear = function(form_probit, form_linear, data=NULL, par=NULL, method='BFGS', init=c('zero', 'unif', 'norm', 'default')[4], verbose=0){
     # 1.1 parse w~z from linear
     mf = model.frame(form_linear, data=data, na.action=NULL, drop.unused.levels=TRUE)
     w = model.response(mf, "numeric")
@@ -136,7 +163,7 @@ probit_linear = function(form_probit, form_linear, data=NULL, par=NULL, method='
     begin = Sys.time()
 
     # # use optim (hessian is forced to be symmetric)
-    # res = optim(par=par, fn=LL_probit_linear, gr=Gradient_probit_linear, method="BFGS", control=list(factr=accu,fnscale=-1), y=y, z=z, x=x, w=w, verbose=verbose, hessian = TRUE)
+    # res = optim(par=par, fn=LL_probit_linear, gr=Gradient_probit_linear, method="BFGS", control=list(fnscale=-1), y=y, z=z, x=x, w=w, verbose=verbose, hessian = TRUE)
 
     # use maxLik (identical estimate with optim, but more reliable SE)
     res = maxLik(LL_probit_linear, grad=Gradient_probit_linear, start=par, method=method, y=y, z=z, x=x, w=w, verbose=verbose)
@@ -147,7 +174,7 @@ probit_linear = function(form_probit, form_linear, data=NULL, par=NULL, method='
     gvar = Gradient_probit_linear(res$par,y,z,x,w,verbose=verbose-1,variance=TRUE)
     if(any(is.na(gvar$var))){
         warning('NA in Hessian matrix, will reestimate with unif initialization!')
-        return(probit_linear(form_linear, form_probit, data, par, init='unif', verbose=verbose, accu=accu))
+        return(probit_linear(form_linear, form_probit, data, par, init='unif', verbose=verbose))
     }
 
     res = getVarSE(res, gvar=gvar, verbose=verbose)
@@ -157,7 +184,7 @@ probit_linear = function(form_probit, form_linear, data=NULL, par=NULL, method='
     res$probit_prob = gvar$probit_prob
     res$iter = endogeneity.env$iter
 
-    if(verbose>0){
+    if(verbose>=0){
         cat(sprintf('==== Converged after %d iterations, LL=%.2f, gtHg=%.6f ****\n', res$iterations, res$LL, res$gtHg))
         cat(sprintf('LR test of rho=0, chi2(1)=%.3f, p-value=%.4f\n', res$LR_stat, res$LR_p))
         print(res$time <- Sys.time() - begin)
@@ -165,3 +192,70 @@ probit_linear = function(form_probit, form_linear, data=NULL, par=NULL, method='
     return (res)
 }
 
+#' Recursive Linear-Probit Model
+#' @description Estimate linear and probit models with bivariate normally distributed error terms.\cr\cr
+#' First stage (Linear):
+#' \deqn{m_i=\boldsymbol{\alpha}'\mathbf{w_i}+\sigma u_i}{m_i = \alpha' * w_i + \sigma*u_i}
+#' Second stage (Probit):
+#' \deqn{y_i = 1(\boldsymbol{\beta}'\mathbf{x_i} + {\gamma}m_i + v_i>0)}{y_i = 1(\beta' * x_i + \gamma * m_i + v_i > 0)}
+#' Endogeneity structure:
+#' \eqn{u_i} and \eqn{v_i} are bivariate normally distributed with a correlation of \eqn{\rho}. \cr\cr
+#' The identification of this model requires an instrumental variable that appears in w but not x. This model still works if the first-stage dependent variable is not a regressor in the second stage.
+#' @param form_linear Formula for the linear model
+#' @param form_probit Formula for the probit model
+#' @param data Input data, a data frame
+#' @param par Starting values for estimates
+#' @param init Initialization method
+#' @param method Optimization algorithm. Default is BFGS
+#' @param verbose A integer indicating how much output to display during the estimation process.
+#' * <0 - No ouput
+#' * 0 - Basic output (model estimates)
+#' * 1 - Moderate output, basic ouput + parameter and likelihood in each iteration
+#' * 2 - Extensive output, moderate output + gradient values on each call
+#' @return A list containing the results of the estimated model, some of which are inherited from the return of maxLik
+#' * estimates: Model estimates with 95% confidence intervals
+#' * estimate or par: Point estimates
+#' * variance_type: covariance matrix used to calculate standard errors. Either BHHH or Hessian.
+#' * var: covariance matrix
+#' * se: standard errors
+#' * var_bhhh: BHHH covariance matrix, inverse of the outer product of gradient at the maximum
+#' * se_bhhh: BHHH standard errors
+#' * gradient: Gradient function at maximum
+#' * hessian: Hessian matrix at maximum
+#' * gtHg: \eqn{g'H^-1g}, where H^-1 is simply the covariance matrix. A value close to zero (e.g., <1e-3 or 1e-6) indicates good convergence.
+#' * LL or maximum: Likelihood
+#' * AIC: AIC
+#' * BIC: BIC
+#' * n_obs: Number of observations
+#' * n_par: Number of parameters
+#' * LR_stat: Likelihood ratio test statistic for \eqn{\rho=0}
+#' * LR_p: p-value of likelihood ratio test
+#' * iterations: number of iterations taken to converge
+#' * message: Message regarding convergence status.
+#'
+#' Note that the list inherits all the components in the output of maxLik. See the documentation of maxLik for more details.
+#' @md
+#' @examples
+#' library(MASS)
+#' N = 2000
+#' rho = -0.5
+#' set.seed(1)
+#'
+#' x = rbinom(N, 1, 0.5)
+#' z = rnorm(N)
+#'
+#' e = mvrnorm(N, mu=c(0,0), Sigma=matrix(c(1,rho,rho,1), nrow=2))
+#' e1 = e[,1]
+#' e2 = e[,2]
+#'
+#' m = 1 + x + z + e1
+#' y = as.numeric(1 + x + m + e2 > 0)
+#'
+#' est = linear_probit(m~x+z, y~x+m)
+#' print(est$estimates, digits=3)
+#' @export
+#' @family endogeneity
+#' @references Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at https://doi.org/10.1287/isre.2022.1113
+linear_probit = function(form_linear, form_probit, data=NULL, par=NULL, method='BFGS', init=c('zero', 'unif', 'norm', 'default')[4], verbose=0){
+    probit_linear(form_probit, form_linear, data=data, par=par, method=method, init=init, verbose=verbose)
+}

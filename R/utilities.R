@@ -10,6 +10,10 @@ addIter = function(){
     endogeneity.env$iter = endogeneity.env$iter + 1
 }
 
+.onUnload <- function (libpath) {
+    library.dynam.unload("endogeneity", libpath)
+}
+
 getVarSE = function(res, gvar=NULL, verbose=0){
     # Greene: For small and moderate sized samples, Hessian is preferable
     # Simulation shows that the original asymmetric hessian produces much smaller SE and the 95% coverage probability is closer to 95%

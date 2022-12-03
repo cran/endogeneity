@@ -1,0 +1,270 @@
+---
+title: "Recursive Two-Stage Models to Address Endogeneity"
+author:
+- name: Jing Peng
+  affiliation: School of Business, University of Connecticut
+  email: jing.peng@uconn.edu
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+link-citations: true
+vignette: >
+  %\VignetteIndexEntry{Recursive Two-Stage Models to Address Endogeneity}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## 1. Introduction
+
+Endogeneity is a key challenge in causal inference. In the absence of plausible instrumental variables, empirical researchers often have little choice but to rely on model-based identification, which makes parametric assumption about the endogeneity structure.
+
+Model-based identification is usually operationalized in the form of recursive two-stage models, where the dependent variable of the first stage is also the endogenous variable of interest in the second stage. Depending on the types of variables involved in the first and second stages (e.g., continuous, binary, and count), the recursive two-stage models can take many different forms.
+
+The [*endogeneity*](https://CRAN.R-project.org/package=endogeneity) package supports the estimation of the following recursive two-stage models discussed in [Peng (2022)](https://doi.org/10.1287/isre.2022.1113). The models implemented in this package can be used to address the endogeneity of treatment variables in observational studies or the endogeneity of mediators in randomized experiments. 
+
+```{r Table, echo=FALSE}
+tb = data.frame(
+    Model = c('biprobit', 'biprobit_latent', 'biprobit_partial', 'probit_linear', 'probit_linear_latent', 'probit_linear_partial', 'probit_linearRE', 'pln_linear', 'pln_probit'),
+    `First Stage` = c(rep('probit', 7), rep('pln', 2)),
+    `Second Stage` = c(rep('probit',3), rep('linear', 3), 'linearRE', 'linear', 'probit'),
+    `Endogenous Variable` = c(rep(c('binary', 'binary (unobserved)', 'binary (partially observed)'), 2), 'binary', rep('count', 2)),
+    `Outcome Variable` = c(rep('binary',3), rep('continuous', 5), 'binary')
+)
+knitr::kable(tb, col.names = gsub("[.]", " ", names(tb)), caption='**Table 1. Recursive Two-Stage Models Supported by the Endogeneity Package**')
+```
+
+## 2. Models
+
+Let M and Y denote the endogenous variable and the outcome variable, respectively. The models listed in Table 1 are specified as follows.
+
+### 2.1. biprobit
+
+This model can be used when the endogenous variable and the outcome variable are both binary. The first and second stages of the model are given by:
+
+First stage (Probit): $$m_i=1(\alpha'w_i+u_i>0)$$
+
+Second stage (Probit):
+
+$$y_i=1(\beta'x_i+\gamma m_i+v_i>0)$$
+
+Endogeneity structure:
+
+$$\begin{pmatrix}
+u_i \\
+v_i
+\end{pmatrix}\sim N\left(\begin{pmatrix}
+0 \\
+0
+\end{pmatrix},\begin{pmatrix}
+1 & \rho \\
+\rho & 1
+\end{pmatrix}\right).
+$$
+
+where $w_i$ represents the set of covariates influencing the endogenous variable $m_i$, and $x_i$ denotes the set of covariates influencing the outcome variable $y_i$. $u_i$ and $v_i$ are assumed to follow a standard bivariate normal distribution. As is customary in a Probit model, the variance of the error term is assumed to be one in both stages to ensure that the parameter estimates are unique.
+
+### 2.2. biprobit_latent and biprobit_partial
+
+These two models can be used when the endogenous variable and the outcome variable are both binary, but the endogenous variable is unobserved or partially observed. Such endogenous variables of interest to researchers could be an unobserved or partially observed mediator.
+
+The first and second stages of the *biprobit_latent* model are given by:
+
+First stage (Latent Probit): $$m_i^*=1(\alpha'w_i+u_i>0)$$
+
+Second stage (Probit):
+
+$$y_i=1(\beta'x_i+\gamma m_i^*+v_i>0)$$
+
+Endogeneity structure:
+
+$$\begin{pmatrix}
+u_i \\
+v_i
+\end{pmatrix}\sim N\left(\begin{pmatrix}
+0 \\
+0
+\end{pmatrix},\begin{pmatrix}
+1 & \rho \\
+\rho & 1
+\end{pmatrix}\right).
+$$
+
+where $w_i$ represents the set of covariates influencing the unobserved endogenous variable $m_i^*$, and $x_i$ denotes the set of covariates influencing the outcome variable $y_i$. $u_i$ and $v_i$ are assumed to follow a standard bivariate normal distribution. To ensure that the estimates of the above model are unique, $\gamma$ is restricted to be positive. Even with this constraint, the identification of this model can still be weak.
+
+The only difference between *biprobit_latent* and *biprobit_partial* is that the latter allows the endogenous variable M to be partially observed. Compared to the case when M is fully unobserved, measuring M for 10%\~20% of units can significantly improve the identification of the model.
+
+### 2.3. probit_linear
+
+This model can be used when the endogenous variable is binary and the outcome variable is continuous. The first and second stages of the model are given by:
+
+First stage (Probit): $$m_i=1(\alpha'w_i+u_i>0)$$
+
+Second stage (Linear):
+
+$$y_i=\beta'x_i+\gamma m_i+\sigma v_i$$
+
+Endogeneity structure:
+
+$$\begin{pmatrix}
+u_i \\
+v_i
+\end{pmatrix}\sim N\left(\begin{pmatrix}
+0 \\
+0
+\end{pmatrix},\begin{pmatrix}
+1 & \rho \\
+\rho & 1
+\end{pmatrix}\right).
+$$
+
+where $w_i$ represents the set of covariates influencing the endogenous variable $m_i$, and $x_i$ denotes the set of covariates influencing the outcome variable $y_i$. $u_i$ and $v_i$ are assumed to follow a standard bivariate normal distribution. $\sigma^2$ represents the variance of the error term in the outcome equation.
+
+### 2.4. probit_linear_latent and probit_linear_partial
+
+These two models can be used when the outcome variable is continuous and the endogenous variable is an unobserved or partially observed binary variable. Such endogenous variables of interest to researchers could be an unobserved or partially observed mediator.
+
+The first and second stages of the *probit_linear_latent* model are given by:
+
+First stage (Latent Probit): $$m_i^*=1(\alpha'w_i+u_i>0)$$
+
+Second stage (Linear):
+
+$$y_i=\beta'x_i+\gamma m_i^*+\sigma v_i$$
+
+Endogeneity structure:
+
+$$\begin{pmatrix}
+u_i \\
+v_i
+\end{pmatrix}\sim N\left(\begin{pmatrix}
+0 \\
+0
+\end{pmatrix},\begin{pmatrix}
+1 & \rho \\
+\rho & 1
+\end{pmatrix}\right).
+$$
+
+where $w_i$ represents the set of covariates influencing the unobserved endogenous variable $m_i^*$, and $x_i$ denotes the set of covariates influencing the outcome variable $y_i$. $u_i$ and $v_i$ are assumed to follow a standard bivariate normal distribution. To ensure that the estimates of the above model are unique, $\gamma$ is restricted to be positive. Even with this constraint, the identification of this model can still be weak.
+
+The only difference between *probit_linear_latent* and *probit_linear_partial* is that the latter allows the endogenous variable M to be partially observed. Compared to the case when M is fully unobserved, measuring M for 10%\~20% of units can significantly improve the identification of the model.
+
+### 2.5. probit_linearRE
+
+This model is an extension of the *probit_linear* model to panel data. The outcome variable is a time-variant continuous variable, and the endogenous variable is a time-invariant binary variable. The first and second stages of the model are given by:
+
+First stage (Probit): $$m_i=1(\alpha'w_i+u_i>0)$$
+
+Second stage (Panel linear model with individual-level random effects):
+
+$$y_{it}=\beta'x_{it}+\gamma m_i+\lambda v_i+\sigma \varepsilon_{it}$$
+
+Endogeneity structure:
+
+$$\begin{pmatrix}
+u_i \\
+v_i
+\end{pmatrix}\sim N\left(\begin{pmatrix}
+0 \\
+0
+\end{pmatrix},\begin{pmatrix}
+1 & \rho \\
+\rho & 1
+\end{pmatrix}\right).
+$$
+
+where $w_i$ represents the set of covariates influencing the endogenous variable $m_i$, and $x_i$ denotes the set of covariates influencing the outcome variable $y_i$. $v_i$ represents the individual-level random effect and is assumed to follow a standard bivariate normal distribution with $u_i$. $\sigma^2$ represents the variance of the error term in the outcome equation.
+
+### 2.6. pln_linear
+
+This model can be used when the endogenous variable is a count measure and the outcome variable is continuous. The first and second stages of the model are given by:
+
+First stage (Poisson lognormal): $$E[m_i|w_i,u_i]=exp(\alpha'w_i+\lambda u_i)$$
+
+Second stage (linear):
+
+$$y_i=\beta'x_i+\gamma m_i+\sigma v_i$$
+
+Endogeneity structure:
+
+$$\begin{pmatrix}
+u_i \\
+v_i
+\end{pmatrix}\sim N\left(\begin{pmatrix}
+0 \\
+0
+\end{pmatrix},\begin{pmatrix}
+1 & \rho \\
+\rho & 1
+\end{pmatrix}\right).
+$$
+
+where $w_i$ represents the set of covariates influencing the endogenous variable $m_i$, and $x_i$ denotes the set of covariates influencing the outcome variable $y_i$. $u_i$ and $v_i$ are assumed to follow a standard bivariate normal distribution. $\lambda^2$ and $\sigma^2$ represent the variance of the error terms in the first and second stages, respectively.
+
+### 2.7. pln_probit
+
+This model can be used when the endogenous variable is a count measure and the outcome variable is binary. The first and second stages of the model are given by:
+
+First stage (Poisson lognormal): $$E[m_i|w_i,u_i]=exp(\alpha'w_i+\lambda u_i)$$
+
+Second stage (Probit):
+
+$$y_i=1(\beta'x_i+\gamma m_i+v_i>0)$$
+
+Endogeneity structure:
+
+$$\begin{pmatrix}
+u_i \\
+v_i
+\end{pmatrix}\sim N\left(\begin{pmatrix}
+0 \\
+0
+\end{pmatrix},\begin{pmatrix}
+1 & \rho \\
+\rho & 1
+\end{pmatrix}\right).
+$$
+
+where $w_i$ represents the set of covariates influencing the endogenous variable $m_i$, and $x_i$ denotes the set of covariates influencing the outcome variable $y_i$. $u_i$ and $v_i$ are assumed to follow a standard bivariate normal distribution. $\lambda^2$ represents the variance of the error term in the first stage. The variance of the error term in the second stage Probit model is normalized to 1.
+
+## 3. Examples
+
+After loading the [*endogeneity*](https://CRAN.R-project.org/package=endogeneity) package, type "example(model_name)" to see sample code for each model. For example, the code below runs the *probit_linear* model on a simulated dataset with the following data generating process (DGP):
+
+$$m_i=1(1+x_i+z_i+u_i>0)$$
+
+$$y_i=1+x_i+z_i+m_i+v_i>0$$
+
+$$\begin{pmatrix}
+u_i \\
+v_i
+\end{pmatrix}\sim N\left(\begin{pmatrix}
+0 \\
+0
+\end{pmatrix},\begin{pmatrix}
+1 & -0.5 \\
+-0.5 & 1
+\end{pmatrix}\right).
+$$
+
+```{r}
+library(endogeneity)
+example(probit_linear, prompt.prefix=NULL)
+```
+
+It can be seen that the parameter estimates are very close to the true values.
+
+## 4. Notes
+
+When the first stage is nonlinear, the identification of a recursive two-stage model does not require an instrumental variable that appears in the first stage but not the second stage. The identification strength generally increases with the explanatory power of the first stage covariates. Therefore, one can improve the identification by including more control variables. Comprehensive simulation studies and sensitivity analyses for the recursive two-stage models are available in [Peng (2022)](https://doi.org/10.1287/isre.2022.1113).
+
+Empirical researchers are encouraged to try both instrument-based and model-based identification whenever possible. If the two identification strategies relying on different assumptions lead to consistent results, we can be more certain about the validity of our findings.
+
+## Citations
+Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at <https://doi.org/10.1287/isre.2022.1113>

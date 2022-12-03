@@ -4,15 +4,7 @@
 \alias{bilinear}
 \title{Recusrive Bivariate Linear Model}
 \usage{
-bilinear(
-  form1,
-  form2,
-  data = NULL,
-  par = NULL,
-  method = "BFGS",
-  verbose = 0,
-  accu = 10000
-)
+bilinear(form1, form2, data = NULL, par = NULL, method = "BFGS", verbose = 0)
 }
 \arguments{
 \item{form1}{Formula for the first linear model}
@@ -25,16 +17,49 @@ bilinear(
 
 \item{method}{Optimization algorithm. Default is BFGS}
 
-\item{verbose}{Level of output during estimation. Lowest is 0.}
-
-\item{accu}{1e12 for low accuracy; 1e7 for moderate accuracy; 10.0 for extremely high accuracy. See optim}
+\item{verbose}{A integer indicating how much output to display during the estimation process.
+\itemize{
+\item <0 - No ouput
+\item 0 - Basic output (model estimates)
+\item 1 - Moderate output, basic ouput + parameter and likelihood in each iteration
+\item 2 - Extensive output, moderate output + gradient values on each call
+}}
 }
 \value{
-A list containing the results of the estimated model
+A list containing the results of the estimated model, some of which are inherited from the return of maxLik
+\itemize{
+\item estimates: Model estimates with 95\% confidence intervals. Prefix "1" means first stage variables.
+\item estimate or par: Point estimates
+\item variance_type: covariance matrix used to calculate standard errors. Either BHHH or Hessian.
+\item var: covariance matrix
+\item se: standard errors
+\item var_bhhh: BHHH covariance matrix, inverse of the outer product of gradient at the maximum
+\item se_bhhh: BHHH standard errors
+\item gradient: Gradient function at maximum
+\item hessian: Hessian matrix at maximum
+\item gtHg: \eqn{g'H^-1g}, where H^-1 is simply the covariance matrix. A value close to zero (e.g., <1e-3 or 1e-6) indicates good convergence.
+\item LL or maximum: Likelihood
+\item AIC: AIC
+\item BIC: BIC
+\item n_obs: Number of observations
+\item n_par: Number of parameters
+\item LR_stat: Likelihood ratio test statistic for \eqn{\rho=0}
+\item LR_p: p-value of likelihood ratio test
+\item iterations: number of iterations taken to converge
+\item message: Message regarding convergence status.
+}
+
+Note that the list inherits all the components in the output of maxLik. See the documentation of maxLik for more details.
 }
 \description{
-Estimate two linear models with bivariate normally distributed error terms. This command still works if the first-stage dependent variable is not a regressor in the second stage.
-The identification of a recursive bilinear model requires an instrument for the first dependent variable.
+Estimate two linear models with bivariate normally distributed error terms.\cr\cr
+First stage (Linear):
+\deqn{m_i=\boldsymbol{\alpha}'\mathbf{w_i}+\lambda u_i}{m_i = \alpha' * w_i + \lambda * u_i}
+Second stage (Linear):
+\deqn{y_i = \boldsymbol{\beta}'\mathbf{x_i} + {\gamma}m_i + \sigma v_i}{y_i = \beta' * x_i + \gamma * m_i + \sigma * v_i}
+Endogeneity structure:
+\eqn{u_i} and \eqn{v_i} are bivariate normally distributed with a correlation of \eqn{\rho}. \cr\cr
+The identification of this model requires an instrumental variable that appears in w but not x. This model still works if the first-stage dependent variable is not a regressor in the second stage.
 }
 \examples{
 library(MASS)
@@ -49,22 +74,24 @@ e = mvrnorm(N, mu=c(0,0), Sigma=matrix(c(1,rho,rho,1), nrow=2))
 e1 = e[,1]
 e2 = e[,2]
 
-y1 = -1 + x + z + e1
-y2 = -1 + x + y1 + e2
+m = -1 + x + z + e1
+y = -1 + x + m + e2
 
-est = bilinear(y1~x+z, y2~x+y1)
-est$estimates
+est = bilinear(m~x+z, y~x+m)
+print(est$estimates, digits=3)
 }
 \references{
-Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at SSRN: https://ssrn.com/abstract=3494856
+Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at https://doi.org/10.1287/isre.2022.1113
 }
 \seealso{
 Other endogeneity: 
 \code{\link{biprobit_latent}()},
 \code{\link{biprobit_partial}()},
 \code{\link{biprobit}()},
+\code{\link{linear_probit}()},
 \code{\link{pln_linear}()},
 \code{\link{pln_probit}()},
+\code{\link{probit_linearRE}()},
 \code{\link{probit_linear_latent}()},
 \code{\link{probit_linear_partial}()},
 \code{\link{probit_linear}()}

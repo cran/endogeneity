@@ -85,7 +85,14 @@ gradient_pln_probit = function(par,y1,y2,x1,x2,H=20,verbose=1,variance=FALSE){
 }
 
 #' Recursive PLN-Probit Model
-#' @description Estimate a Poisson Lognormal model (first-stage) and a probit model (second-stage) whose error terms are bivariate normally distributed. This model still works if the first-stage dependent variable is not a regressor in the second stage.
+#' @description Estimate a Poisson Lognormal model and a Probit model with bivariate normally distributed error/heterogeneity terms.\cr\cr
+#' First stage (Poisson Lognormal):
+#' \deqn{E[m_i|w_i,u_i]=exp(\boldsymbol{\alpha}'\mathbf{w_i}+\lambda u_i)}{E[m_i | w_i, u_i] = exp(\alpha' * w_i + \lambda * u_i)}
+#' Second stage (Probit):
+#' \deqn{y_i = 1(\boldsymbol{\beta}'\mathbf{x_i} + {\gamma}m_i + \sigma v_i > 0)}{y_i = 1(\beta' * x_i + \gamma * m_i + \sigma * v_i > 0)}
+#' Endogeneity structure:
+#' \eqn{u_i} and \eqn{v_i} are bivariate normally distributed with a correlation of \eqn{\rho}. \cr\cr
+#' This model is typically well-identified even if w and x are the same set of variables. This model still works if the first-stage dependent variable is not a regressor in the second stage.
 #' @param form_pln Formula for the first-stage Poisson lognormal model
 #' @param form_probit Formula for the second-stage probit model
 #' @param data Input data, a data frame
@@ -93,12 +100,35 @@ gradient_pln_probit = function(par,y1,y2,x1,x2,H=20,verbose=1,variance=FALSE){
 #' @param init Initialization method
 #' @param H Number of quadrature points
 #' @param method Optimization algorithm. Without gradient, NM is much faster than BFGS
-#' @param accu 1e12 for low accuracy; 1e7 for moderate accuracy; 10.0 for extremely high accuracy. See optim
-#' @param verbose Level of output during estimation. Lowest is 0.
-#' @return A list containing the results of the estimated model
+#' @param verbose A integer indicating how much output to display during the estimation process.
+#' * <0 - No ouput
+#' * 0 - Basic output (model estimates)
+#' * 1 - Moderate output, basic ouput + parameter and likelihood in each iteration
+#' * 2 - Extensive output, moderate output + gradient values on each call
+#' @return A list containing the results of the estimated model, some of which are inherited from the return of maxLik
+#' * estimates: Model estimates with 95% confidence intervals. Prefix "pln" means first stage variables.
+#' * estimate or par: Point estimates
+#' * variance_type: covariance matrix used to calculate standard errors. Either BHHH or Hessian.
+#' * var: covariance matrix
+#' * se: standard errors
+#' * gradient: Gradient function at maximum
+#' * hessian: Hessian matrix at maximum
+#' * gtHg: \eqn{g'H^-1g}, where H^-1 is simply the covariance matrix. A value close to zero (e.g., <1e-3 or 1e-6) indicates good convergence.
+#' * LL or maximum: Likelihood
+#' * AIC: AIC
+#' * BIC: BIC
+#' * n_obs: Number of observations
+#' * n_par: Number of parameters
+#' * LR_stat: Likelihood ratio test statistic for \eqn{\rho=0}
+#' * LR_p: p-value of likelihood ratio test
+#' * iterations: number of iterations taken to converge
+#' * message: Message regarding convergence status.
+#'
+#' Note that the list inherits all the components in the output of maxLik. See the documentation of maxLik for more details.
+#' @md
 #' @examples
 #' library(MASS)
-#' N = 1000
+#' N = 2000
 #' rho = -0.5
 #' set.seed(1)
 #'
@@ -109,14 +139,15 @@ gradient_pln_probit = function(par,y1,y2,x1,x2,H=20,verbose=1,variance=FALSE){
 #' e1 = e[,1]
 #' e2 = e[,2]
 #'
-#' y1 = rpois(N, exp(-1 + x + z + e1))
-#' y2 = as.numeric(1 + x + z + log(1+y1) + e2 > 0)
-#' est = pln_probit(y1~x+z, y2~x+z+log(1+y1))
-#' est$estimates
+#' m = rpois(N, exp(-1 + x + z + e1))
+#' y = as.numeric(1 + x + z + log(1+m) + e2 > 0)
+#'
+#' est = pln_probit(m~x+z, y~x+z+log(1+m))
+#' print(est$estimates, digits=3)
 #' @export
 #' @family endogeneity
-#' @references Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at SSRN: https://ssrn.com/abstract=3494856
-pln_probit = function(form_pln, form_probit, data=NULL, par=NULL, method='BFGS', init=c('zero', 'unif', 'norm', 'default')[4], H=20, verbose=0, accu=1e4){
+#' @references Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at https://doi.org/10.1287/isre.2022.1113
+pln_probit = function(form_pln, form_probit, data=NULL, par=NULL, method='BFGS', init=c('zero', 'unif', 'norm', 'default')[4], H=20, verbose=0){
     # 1.1 parse y1~x1
     mf1 = model.frame(form_pln, data=data, na.action=NULL, drop.unused.levels=TRUE)
     y1 = model.response(mf1, "numeric")
@@ -142,7 +173,7 @@ pln_probit = function(form_pln, form_probit, data=NULL, par=NULL, method='BFGS',
     resetIter()
 
     # optim
-    # res = optim(par=par, fn=LL_pln_probit, gr=NULL, method=method, control=list(factr=accu,fnscale=-1), y1=y1, y2=y2, x1=x1, x2=x2, H=H, verbose=verbose, hessian = TRUE)
+    # res = optim(par=par, fn=LL_pln_probit, gr=NULL, method=method, control=list(fnscale=-1), y1=y1, y2=y2, x1=x1, x2=x2, H=H, verbose=verbose, hessian = TRUE)
 
     # use maxLik (identical estimate with optim, but more reliable SE)
     res = maxLik(LL_pln_probit, grad=gradient_pln_probit, start=par, method=method, y1=y1, y2=y2, x1=x1, x2=x2, H=H, verbose=verbose)
@@ -158,7 +189,7 @@ pln_probit = function(form_pln, form_probit, data=NULL, par=NULL, method='BFGS',
     res$probit = summary(probit)
     res$iter = endogeneity.env$iter
 
-    if(verbose>0){
+    if(verbose>=0){
         cat(sprintf('==== Converged after %d iterations, LL=%.2f, gtHg=%.6f **** \n', res$iterations, res$LL, res$gtHg))
         cat(sprintf('LR test of rho=0, chi2(1)=%.3f, p-value=%.4f\n', res$LR_stat, res$LR_p))
         print(res$time <- Sys.time() - begin)

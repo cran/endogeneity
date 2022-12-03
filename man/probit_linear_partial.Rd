@@ -12,7 +12,6 @@ probit_linear_partial(
   par = NULL,
   method = "BFGS",
   verbose = 0,
-  accu = 10000,
   maxIter = 500,
   tol = 1e-06,
   tol_LL = 1e-08
@@ -25,15 +24,19 @@ probit_linear_partial(
 
 \item{data}{Input data, a data frame}
 
-\item{EM}{Whether to maximize likelihood use the Expectation-Maximization algorithm. EM is slower but more robust}
+\item{EM}{Whether to maximize likelihood use the Expectation-Maximization (EM) algorithm, which is slower but more robust. Defaults to TRUE.}
 
 \item{par}{Starting values for estimates}
 
 \item{method}{Optimization algorithm. Default is BFGS}
 
-\item{verbose}{Level of output during estimation. Lowest is 0.}
-
-\item{accu}{1e12 for low accuracy; 1e7 for moderate accuracy; 10.0 for extremely high accuracy. See optim}
+\item{verbose}{A integer indicating how much output to display during the estimation process.
+\itemize{
+\item <0 - No ouput
+\item 0 - Basic output (model estimates)
+\item 1 - Moderate output, basic ouput + parameter and likelihood in each iteration
+\item 2 - Extensive output, moderate output + gradient values on each call
+}}
 
 \item{maxIter}{max iterations for EM algorithm}
 
@@ -42,10 +45,37 @@ probit_linear_partial(
 \item{tol_LL}{tolerance for convergence of likelihood}
 }
 \value{
-A list containing the results of the estimated model
+A list containing the results of the estimated model, some of which are inherited from the return of maxLik
+\itemize{
+\item estimates: Model estimates with 95\% confidence intervals
+\item estimate or par: Point estimates
+\item variance_type: covariance matrix used to calculate standard errors. Either BHHH or Hessian.
+\item var: covariance matrix
+\item se: standard errors
+\item gradient: Gradient function at maximum
+\item hessian: Hessian matrix at maximum
+\item gtHg: \eqn{g'H^-1g}, where H^-1 is simply the covariance matrix. A value close to zero (e.g., <1e-3 or 1e-6) indicates good convergence.
+\item LL or maximum: Likelihood
+\item AIC: AIC
+\item BIC: BIC
+\item n_obs: Number of observations
+\item n_par: Number of parameters
+\item iterations: number of iterations taken to converge
+\item message: Message regarding convergence status.
+}
+
+Note that the list inherits all the components in the output of maxLik. See the documentation of maxLik for more details.
 }
 \description{
-The first stage is a probit model with partially observed (or  unobserved) dependent variable, the second stage is a linear model that includes the first-stage dependent variable as a regressor.
+Partially observed version of the Probit-Linear Model. \cr\cr
+First stage (Probit, \eqn{m_i} is partially observed):
+\deqn{m_i=1(\boldsymbol{\alpha}'\mathbf{w_i}+u_i>0)}{m_i = 1(\alpha' * w_i + u_i > 0)}
+Second stage (Linear):
+\deqn{y_i = \boldsymbol{\beta}'\mathbf{x_i} + {\gamma}m_i + \sigma v_i}{y_i = \beta' * x_i + \gamma * m_i + \sigma * v_i}
+Endogeneity structure:
+\eqn{u_i} and \eqn{v_i} are bivariate normally distributed with a correlation of \eqn{\rho}. \cr\cr
+Unobserved \eqn{m_i} should be coded as NA. w and x can be the same set of variables. Identification can be weak if w are not good predictors of m.
+Observing \eqn{m_i} for a small proportion of observations (e.g., 10~20\%) can significantly improve the identification of the model.
 }
 \examples{
 \donttest{
@@ -61,20 +91,21 @@ e = mvrnorm(N, mu=c(0,0), Sigma=matrix(c(1,rho,rho,1), nrow=2))
 e1 = e[,1]
 e2 = e[,2]
 
-y1 = as.numeric(1 + x + z + e1 > 0)
-y2 = 1 + x + z + y1 + e2
-est = probit_linear(y1~x+z, y2~x+z+y1)
-est$estimates
+m = as.numeric(1 + x + z + e1 > 0)
+y = 1 + x + z + m + e2
+est = probit_linear(m~x+z, y~x+z+m)
+print(est$estimates, digits=3)
 
+# partially observed version of m
 observed_pct = 0.2
-y1p = y1
-y1p[sample(N, N*(1-observed_pct))] = NA
-est_latent = probit_linear_partial(y1p~x+z, y2~x+z)
-est_latent$estimates
+m_p = m
+m_p[sample(N, N*(1-observed_pct))] = NA
+est_latent = probit_linear_partial(m_p~x+z, y~x+z)
+print(est_latent$estimates, digits=3)
 }
 }
 \references{
-Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at SSRN: https://ssrn.com/abstract=3494856
+Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at https://doi.org/10.1287/isre.2022.1113
 }
 \seealso{
 Other endogeneity: 
@@ -82,8 +113,10 @@ Other endogeneity:
 \code{\link{biprobit_latent}()},
 \code{\link{biprobit_partial}()},
 \code{\link{biprobit}()},
+\code{\link{linear_probit}()},
 \code{\link{pln_linear}()},
 \code{\link{pln_probit}()},
+\code{\link{probit_linearRE}()},
 \code{\link{probit_linear_latent}()},
 \code{\link{probit_linear}()}
 }

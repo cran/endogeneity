@@ -50,7 +50,7 @@ Q_probit_linear_partial = function(par,P1,y1,y2,x1,x2,verbose=1){
     return (LL)
 }
 
-EM_probit_linear_partial = function(par,y1,y2,x1,x2,maxIter=200,tol=1e-8,tol_LL=1e-8,verbose=1,accu=1e4){
+EM_probit_linear_partial = function(par,y1,y2,x1,x2,maxIter=200,tol=1e-8,tol_LL=1e-8,verbose=1){
     par_last = par
     LL_last = -Inf
     for(i in 1:maxIter){
@@ -76,7 +76,7 @@ EM_probit_linear_partial = function(par,y1,y2,x1,x2,maxIter=200,tol=1e-8,tol_LL=
 
 
         # 2. M step
-        est = optim(par=par, fn=Q_probit_linear_partial, gr=NULL, method="BFGS", control=list(factr=accu,fnscale=-1), P1=P1, y1=y1, y2=y2, x1=x1, x2=x2, verbose=0)
+        est = optim(par=par, fn=Q_probit_linear_partial, gr=NULL, method="BFGS", control=list(fnscale=-1), P1=P1, y1=y1, y2=y2, x1=x1, x2=x2, verbose=0)
         par = est$par
         LL = LL_probit_linear_partial(par,y1,y2,x1,x2,verbose=0)
 
@@ -97,19 +97,48 @@ EM_probit_linear_partial = function(par,y1,y2,x1,x2,maxIter=200,tol=1e-8,tol_LL=
 }
 
 #' Recursive Probit-Linear Model with Partially Observed First Stage
-#' @description The first stage is a probit model with partially observed (or  unobserved) dependent variable, the second stage is a linear model that includes the first-stage dependent variable as a regressor.
+#' @description Partially observed version of the Probit-Linear Model. \cr\cr
+#' First stage (Probit, \eqn{m_i} is partially observed):
+#' \deqn{m_i=1(\boldsymbol{\alpha}'\mathbf{w_i}+u_i>0)}{m_i = 1(\alpha' * w_i + u_i > 0)}
+#' Second stage (Linear):
+#' \deqn{y_i = \boldsymbol{\beta}'\mathbf{x_i} + {\gamma}m_i + \sigma v_i}{y_i = \beta' * x_i + \gamma * m_i + \sigma * v_i}
+#' Endogeneity structure:
+#' \eqn{u_i} and \eqn{v_i} are bivariate normally distributed with a correlation of \eqn{\rho}. \cr\cr
+#' Unobserved \eqn{m_i} should be coded as NA. w and x can be the same set of variables. Identification can be weak if w are not good predictors of m.
+#' Observing \eqn{m_i} for a small proportion of observations (e.g., 10~20%) can significantly improve the identification of the model.
 #' @param form_probit Formula for the first-stage probit model, in which the dependent variable is partially observed
 #' @param form_linear Formula for the second stage linear model. The partially observed dependent variable of the first stage is automatically added as a regressor in this model (do not add manually)
 #' @param data Input data, a data frame
 #' @param par Starting values for estimates
 #' @param method Optimization algorithm. Default is BFGS
-#' @param EM Whether to maximize likelihood use the Expectation-Maximization algorithm. EM is slower but more robust
-#' @param accu 1e12 for low accuracy; 1e7 for moderate accuracy; 10.0 for extremely high accuracy. See optim
+#' @param EM Whether to maximize likelihood use the Expectation-Maximization (EM) algorithm, which is slower but more robust. Defaults to TRUE.
 #' @param maxIter max iterations for EM algorithm
 #' @param tol tolerance for convergence of EM algorithm
 #' @param tol_LL tolerance for convergence of likelihood
-#' @param verbose Level of output during estimation. Lowest is 0.
-#' @return A list containing the results of the estimated model
+#' @param verbose A integer indicating how much output to display during the estimation process.
+#' * <0 - No ouput
+#' * 0 - Basic output (model estimates)
+#' * 1 - Moderate output, basic ouput + parameter and likelihood in each iteration
+#' * 2 - Extensive output, moderate output + gradient values on each call
+#' @return A list containing the results of the estimated model, some of which are inherited from the return of maxLik
+#' * estimates: Model estimates with 95% confidence intervals
+#' * estimate or par: Point estimates
+#' * variance_type: covariance matrix used to calculate standard errors. Either BHHH or Hessian.
+#' * var: covariance matrix
+#' * se: standard errors
+#' * gradient: Gradient function at maximum
+#' * hessian: Hessian matrix at maximum
+#' * gtHg: \eqn{g'H^-1g}, where H^-1 is simply the covariance matrix. A value close to zero (e.g., <1e-3 or 1e-6) indicates good convergence.
+#' * LL or maximum: Likelihood
+#' * AIC: AIC
+#' * BIC: BIC
+#' * n_obs: Number of observations
+#' * n_par: Number of parameters
+#' * iterations: number of iterations taken to converge
+#' * message: Message regarding convergence status.
+#'
+#' Note that the list inherits all the components in the output of maxLik. See the documentation of maxLik for more details.
+#' @md
 #' @examples
 #' \donttest{
 #' library(MASS)
@@ -124,21 +153,22 @@ EM_probit_linear_partial = function(par,y1,y2,x1,x2,maxIter=200,tol=1e-8,tol_LL=
 #' e1 = e[,1]
 #' e2 = e[,2]
 #'
-#' y1 = as.numeric(1 + x + z + e1 > 0)
-#' y2 = 1 + x + z + y1 + e2
-#' est = probit_linear(y1~x+z, y2~x+z+y1)
-#' est$estimates
+#' m = as.numeric(1 + x + z + e1 > 0)
+#' y = 1 + x + z + m + e2
+#' est = probit_linear(m~x+z, y~x+z+m)
+#' print(est$estimates, digits=3)
 #'
+#' # partially observed version of m
 #' observed_pct = 0.2
-#' y1p = y1
-#' y1p[sample(N, N*(1-observed_pct))] = NA
-#' est_latent = probit_linear_partial(y1p~x+z, y2~x+z)
-#' est_latent$estimates
+#' m_p = m
+#' m_p[sample(N, N*(1-observed_pct))] = NA
+#' est_latent = probit_linear_partial(m_p~x+z, y~x+z)
+#' print(est_latent$estimates, digits=3)
 #' }
 #' @export
 #' @family endogeneity
-#' @references Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at SSRN: https://ssrn.com/abstract=3494856
-probit_linear_partial = function(form_probit, form_linear, data=NULL, EM=TRUE, par=NULL, method='BFGS', verbose=0, accu=1e4, maxIter=500, tol=1e-6, tol_LL=1e-8){
+#' @references Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at https://doi.org/10.1287/isre.2022.1113
+probit_linear_partial = function(form_probit, form_linear, data=NULL, EM=TRUE, par=NULL, method='BFGS', verbose=0, maxIter=500, tol=1e-6, tol_LL=1e-8){
     # 1.1 parse y1~x1
     mf1 = model.frame(form_probit, data=data, na.action=NULL, drop.unused.levels=TRUE)
     x1 = model.matrix(attr(mf1, "terms"), data=mf1)
@@ -156,9 +186,9 @@ probit_linear_partial = function(form_probit, form_linear, data=NULL, EM=TRUE, p
     begin = Sys.time()
 
     if(EM==TRUE){
-        res = EM_probit_linear_partial(par,y1,y2,x1,x2,maxIter=maxIter,tol=tol,tol_LL=tol_LL,verbose=verbose,accu=accu)
+        res = EM_probit_linear_partial(par,y1,y2,x1,x2,maxIter=maxIter,tol=tol,tol_LL=tol_LL,verbose=verbose)
     } else {
-        # res = optim(par=par, fn=LL_probit_linear_partial, gr=NULL, method=method, control=list(factr=accu,fnscale=-1), y1=y1, y2=y2, x1=x1, x2=x2, verbose=verbose, hessian = TRUE)
+        # res = optim(par=par, fn=LL_probit_linear_partial, gr=NULL, method=method, control=list(fnscale=-1), y1=y1, y2=y2, x1=x1, x2=x2, verbose=verbose, hessian = TRUE)
         # res$g = numericGradient(LL_probit_linear_partial, t0=res$par, y1=y1, y2=y2, x1=x1, x2=x2, verbose=0)
 
         # use maxLik (identical estimate with optim, but more reliable SE)
@@ -173,7 +203,7 @@ probit_linear_partial = function(form_probit, form_linear, data=NULL, EM=TRUE, p
     res$iter = endogeneity.env$iter
 
 
-    if(verbose>0){
+    if(verbose>=0){
         cat(sprintf('==== Converged after %d iterations, LL=%.2f, gtHg=%.6f ****\n', res$iterations, res$LL, res$gtHg))
         print(res$time <- Sys.time() - begin)
     }

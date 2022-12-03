@@ -46,7 +46,7 @@ Q_probit_linear_latent = function(par,P1,y,x1,x2,verbose=1){
     return (LL)
 }
 
-EM_probit_linear = function(par,y,x1,x2,maxIter=200,tol=1e-8,tol_LL=1e-8,verbose=1,accu=1e4){
+EM_probit_linear = function(par,y,x1,x2,maxIter=200,tol=1e-8,tol_LL=1e-8,verbose=1){
     par_last = par
     LL_last = -Inf
     for(i in 1:maxIter){
@@ -72,7 +72,7 @@ EM_probit_linear = function(par,y,x1,x2,maxIter=200,tol=1e-8,tol_LL=1e-8,verbose
 
 
         # 2. M step
-        est = optim(par=par, fn=Q_probit_linear_latent, gr=NULL, method="BFGS", control=list(factr=accu,fnscale=-1), P1=P1, y=y, x1=x1, x2=x2, verbose=0)
+        est = optim(par=par, fn=Q_probit_linear_latent, gr=NULL, method="BFGS", control=list(fnscale=-1), P1=P1, y=y, x1=x1, x2=x2, verbose=0)
         par = est$par
         LL = LL_probit_linear_latent(par,y,x1,x2,verbose=0)
 
@@ -93,19 +93,47 @@ EM_probit_linear = function(par,y,x1,x2,maxIter=200,tol=1e-8,tol_LL=1e-8,verbose
 }
 
 #' Recursive Probit-Linear Model with Latent First Stage
-#' @description The first stage is a probit model with unobserved dependent variable, the second stage is a linear model that includes the first-stage dependent variable as a regressor.
+#' @description Latent version of the Probit-Linear Model. \cr\cr
+#' First stage (Probit, \eqn{m_i^*} is unobserved):
+#' \deqn{m_i^*=1(\boldsymbol{\alpha}'\mathbf{w_i}+u_i>0)}{m_i^* = 1(\alpha' * w_i + u_i > 0)}
+#' Second stage (Linear):
+#' \deqn{y_i = \boldsymbol{\beta}'\mathbf{x_i} + {\gamma}m_i^* + \sigma v_i}{y_i = \beta' * x_i + \gamma * m_i^* + \sigma * v_i}
+#' Endogeneity structure:
+#' \eqn{u_i} and \eqn{v_i} are bivariate normally distributed with a correlation of \eqn{\rho}. \cr\cr
+#' w and x can be the same set of variables. The identification of this model is generally weak, especially if w are not good predictors of m. \eqn{\gamma} is assumed to be positive to ensure that the model estimates are unique.
 #' @param form_probit Formula for the first-stage probit model, in which the dependent variable is latent
 #' @param form_linear Formula for the second stage linear model. The latent dependent variable of the first stage is automatically added as a regressor in this model
 #' @param data Input data, a data frame
 #' @param par Starting values for estimates
-#' @param EM Whether to maximize likelihood use the Expectation-Maximization algorithm. EM is slower but more robust
+#' @param EM Whether to maximize likelihood use the Expectation-Maximization (EM) algorithm, which is slower but more robust. Defaults to TRUE.
 #' @param method Optimization algorithm. Default is BFGS
-#' @param accu 1e12 for low accuracy; 1e7 for moderate accuracy; 10.0 for extremely high accuracy. See optim
 #' @param maxIter max iterations for EM algorithm
 #' @param tol tolerance for convergence of EM algorithm
 #' @param tol_LL tolerance for convergence of likelihood
-#' @param verbose Level of output during estimation. Lowest is 0.
-#' @return A list containing the results of the estimated model
+#' @param verbose A integer indicating how much output to display during the estimation process.
+#' * <0 - No ouput
+#' * 0 - Basic output (model estimates)
+#' * 1 - Moderate output, basic ouput + parameter and likelihood in each iteration
+#' * 2 - Extensive output, moderate output + gradient values on each call
+#' @return A list containing the results of the estimated model, some of which are inherited from the return of maxLik
+#' * estimates: Model estimates with 95% confidence intervals
+#' * estimate or par: Point estimates
+#' * variance_type: covariance matrix used to calculate standard errors. Either BHHH or Hessian.
+#' * var: covariance matrix
+#' * se: standard errors
+#' * gradient: Gradient function at maximum
+#' * hessian: Hessian matrix at maximum
+#' * gtHg: \eqn{g'H^-1g}, where H^-1 is simply the covariance matrix. A value close to zero (e.g., <1e-3 or 1e-6) indicates good convergence.
+#' * LL or maximum: Likelihood
+#' * AIC: AIC
+#' * BIC: BIC
+#' * n_obs: Number of observations
+#' * n_par: Number of parameters
+#' * iter: number of iterations taken to converge
+#' * message: Message regarding convergence status.
+#'
+#' Note that the list inherits all the components in the output of maxLik. See the documentation of maxLik for more details.
+#' @md
 #' @examples
 #' \donttest{
 #' library(MASS)
@@ -120,18 +148,18 @@ EM_probit_linear = function(par,y,x1,x2,maxIter=200,tol=1e-8,tol_LL=1e-8,verbose
 #' e1 = e[,1]
 #' e2 = e[,2]
 #'
-#' y1 = as.numeric(1 + x + z + e1 > 0)
-#' y2 = 1 + x + z + y1 + e2
-#' est = probit_linear(y1~x+z, y2~x+z+y1)
-#' est$estimates
+#' m = as.numeric(1 + x + z + e1 > 0)
+#' y = 1 + x + z + m + e2
+#' est = probit_linear(m~x+z, y~x+z+m)
+#' print(est$estimates, digits=3)
 #'
-#' est_latent = probit_linear_latent(~x+z, y2~x+z)
-#' est_latent$estimates
+#' est_latent = probit_linear_latent(~x+z, y~x+z)
+#' print(est_latent$estimates, digits=3)
 #' }
 #' @export
 #' @family endogeneity
-#' @references Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at SSRN: https://ssrn.com/abstract=3494856
-probit_linear_latent = function(form_probit, form_linear, data=NULL, EM=TRUE, par=NULL, method='BFGS', verbose=0, accu=1e4, maxIter=500, tol=1e-6, tol_LL=1e-8){
+#' @references Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at https://doi.org/10.1287/isre.2022.1113
+probit_linear_latent = function(form_probit, form_linear, data=NULL, EM=TRUE, par=NULL, method='BFGS', verbose=0, maxIter=500, tol=1e-6, tol_LL=1e-8){
     # 1.1 parse ~x1
     mf1 = model.frame(form_probit, data=data, na.action=NULL, drop.unused.levels=TRUE)
     x1 = model.matrix(attr(mf1, "terms"), data=mf1)
@@ -148,9 +176,9 @@ probit_linear_latent = function(form_probit, form_linear, data=NULL, EM=TRUE, pa
     begin = Sys.time()
 
     if(EM==TRUE){
-        res = EM_probit_linear(par,y,x1,x2,maxIter=maxIter,tol=tol,tol_LL=tol_LL,verbose=verbose,accu=accu)
+        res = EM_probit_linear(par,y,x1,x2,maxIter=maxIter,tol=tol,tol_LL=tol_LL,verbose=verbose)
     } else {
-        # res = optim(par=par, fn=LL_probit_linear_latent, gr=NULL, method=method, control=list(factr=accu,fnscale=-1), y=y, x1=x1, x2=x2, verbose=verbose, hessian = TRUE)
+        # res = optim(par=par, fn=LL_probit_linear_latent, gr=NULL, method=method, control=list(fnscale=-1), y=y, x1=x1, x2=x2, verbose=verbose, hessian = TRUE)
         # res$g = numericGradient(LL_probit_linear_latent, t0=res$par, y=y, x1=x1, x2=x2, verbose=0)
 
         # use maxLik (identical estimate with optim, but more reliable SE)
@@ -164,7 +192,7 @@ probit_linear_latent = function(form_probit, form_linear, data=NULL, EM=TRUE, pa
     res$estimates = transCompile(res, trans_vars=c(gamma='log_gamma', sigma='log_sigma', rho='tau'), trans_types=c('exp', 'exp', 'correlation'))
     res$iter = endogeneity.env$iter
 
-    if(verbose>0){
+    if(verbose>=0){
         cat(sprintf('==== Converged after %d iterations, LL=%.2f, gtHg=%.6f ****\n', res$iterations, res$LL, res$gtHg))
         print(res$time <- Sys.time() - begin)
     }

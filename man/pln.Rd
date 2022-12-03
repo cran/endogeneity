@@ -11,8 +11,7 @@ pln(
   method = "BFGS",
   init = c("zero", "unif", "norm", "default")[4],
   H = 20,
-  verbose = 0,
-  accu = 10000
+  verbose = 0
 )
 }
 \arguments{
@@ -28,15 +27,42 @@ pln(
 
 \item{H}{Number of quadrature points}
 
-\item{verbose}{Level of output during estimation. Lowest is 0.}
-
-\item{accu}{1e12 for low accuracy; 1e7 for moderate accuracy; 10.0 for extremely high accuracy. See optim}
+\item{verbose}{A integer indicating how much output to display during the estimation process.
+\itemize{
+\item <0 - No ouput
+\item 0 - Basic output (model estimates)
+\item 1 - Moderate output, basic ouput + parameter and likelihood in each iteration
+\item 2 - Extensive output, moderate output + gradient values on each call
+}}
 }
 \value{
-A list containing the results of the estimated model
+A list containing the results of the estimated model, some of which are inherited from the return of maxLik
+\itemize{
+\item estimates: Model estimates with 95\% confidence intervals
+\item estimate or par: Point estimates
+\item variance_type: covariance matrix used to calculate standard errors. Either BHHH or Hessian.
+\item var: covariance matrix
+\item se: standard errors
+\item gradient: Gradient function at maximum
+\item hessian: Hessian matrix at maximum
+\item gtHg: \eqn{g'H^-1g}, where H^-1 is simply the covariance matrix. A value close to zero (e.g., <1e-3 or 1e-6) indicates good convergence.
+\item LL or maximum: Likelihood
+\item AIC: AIC
+\item BIC: BIC
+\item n_obs: Number of observations
+\item n_par: Number of parameters
+\item LR_stat: Likelihood ratio test statistic for the heterogeneity term \eqn{\lambda=0}
+\item LR_p: p-value of likelihood ratio test
+\item iterations: number of iterations taken to converge
+\item message: Message regarding convergence status.
+}
+
+Note that the list inherits all the components in the output of maxLik. See the documentation of maxLik for more details.
 }
 \description{
-Estimate a Poisson model with a log-normally distributed heterogeneity term. Also referred to as Poisson-Normal model.
+Estimate a Poisson model with a log-normally distributed heterogeneity term, which is also referred to as the Poisson-Normal model.\cr\cr
+\deqn{E[y_i|x_i,u_i]=exp(\boldsymbol{\alpha}'\mathbf{x_i}+\lambda u_i)}{E[y_i | x_i, u_i] = exp(\alpha' * x_i + \lambda * u_i)}
+The estimates of this model are often similar to those of a negative binomial model.
 }
 \examples{
 library(MASS)
@@ -49,8 +75,8 @@ x = rbinom(N, 1, 0.5)
 z = rnorm(N)
 y = rpois(N, exp(-1 + x + z + 0.5 * rnorm(N)))
 est = pln(y~x+z)
-est$estimates
+print(est$estimates, digits=3)
 }
 \references{
-Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at SSRN: https://ssrn.com/abstract=3494856
+Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at https://doi.org/10.1287/isre.2022.1113
 }
