@@ -158,7 +158,7 @@ EM_probit_linear = function(par,y,x1,x2,maxIter=200,tol=1e-8,tol_LL=1e-8,verbose
 #' }
 #' @export
 #' @family endogeneity
-#' @references Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at https://doi.org/10.1287/isre.2022.1113
+#' @references Peng, Jing. (2023) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research, 34(1):67-84. Available at https://doi.org/10.1287/isre.2022.1113
 probit_linear_latent = function(form_probit, form_linear, data=NULL, EM=TRUE, par=NULL, method='BFGS', verbose=0, maxIter=500, tol=1e-6, tol_LL=1e-8){
     # 1.1 parse ~x1
     mf1 = model.frame(form_probit, data=data, na.action=NULL, drop.unused.levels=TRUE)

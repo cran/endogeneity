@@ -133,7 +133,7 @@ Gradient_probit_linear = function(par,y,z,x,w,verbose=1,variance=FALSE){
 #' print(est$estimates, digits=3)
 #' @export
 #' @family endogeneity
-#' @references Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at https://doi.org/10.1287/isre.2022.1113
+#' @references Peng, Jing. (2023) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research, 34(1):67-84. Available at https://doi.org/10.1287/isre.2022.1113
 probit_linear = function(form_probit, form_linear, data=NULL, par=NULL, method='BFGS', init=c('zero', 'unif', 'norm', 'default')[4], verbose=0){
     # 1.1 parse w~z from linear
     mf = model.frame(form_linear, data=data, na.action=NULL, drop.unused.levels=TRUE)
@@ -255,7 +255,7 @@ probit_linear = function(form_probit, form_linear, data=NULL, par=NULL, method='
 #' print(est$estimates, digits=3)
 #' @export
 #' @family endogeneity
-#' @references Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at https://doi.org/10.1287/isre.2022.1113
+#' @references Peng, Jing. (2023) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research, 34(1):67-84. Available at https://doi.org/10.1287/isre.2022.1113
 linear_probit = function(form_linear, form_probit, data=NULL, par=NULL, method='BFGS', init=c('zero', 'unif', 'norm', 'default')[4], verbose=0){
     probit_linear(form_probit, form_linear, data=data, par=par, method=method, init=init, verbose=verbose)
 }

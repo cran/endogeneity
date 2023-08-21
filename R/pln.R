@@ -61,6 +61,13 @@ gradient_pln = function(par, y, x, H=20, verbose=1, variance=FALSE){
     return(gradient)
 }
 
+fitted.values = function(par, x){
+    alpha = par[1:ncol(x)]
+    lambda = exp(par[length(par)])
+    wa = as.vector(x %*% alpha)
+    exp(wa + 0.5*lambda^2)
+}
+
 predict.pln = function(model, data=NULL, type="response"){
     mf = model.frame(model$formula, data=data, na.action=NULL, drop.unused.levels=TRUE)
     x = model.matrix(attr(mf, "terms"), data=mf)
@@ -123,7 +130,7 @@ predict.pln = function(model, data=NULL, type="response"){
 #' est = pln(y~x+z)
 #' print(est$estimates, digits=3)
 #' @export
-#' @references Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at https://doi.org/10.1287/isre.2022.1113
+#' @references Peng, Jing. (2023) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research, 34(1):67-84. Available at https://doi.org/10.1287/isre.2022.1113
 pln = function(form, data=NULL, par=NULL, method='BFGS', init=c('zero', 'unif', 'norm', 'default')[4], H=20, verbose=0){
     # 1.1 parse y~x
     mf = model.frame(form, data=data, na.action=NULL, drop.unused.levels=TRUE)
@@ -156,6 +163,7 @@ pln = function(form, data=NULL, par=NULL, method='BFGS', init=c('zero', 'unif', 
     res$LR_stat = 2 * (res$LL - logLik(psn))
     res$LR_p = 1 - pchisq(res$LR_stat, 1)
     res$psn = summary(psn)
+    res$fitted.values = fitted.values(res$par, x)
     res$iter = endogeneity.env$iter
     res$formula = form
 

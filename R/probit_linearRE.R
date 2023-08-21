@@ -1,26 +1,3 @@
-# library(endogeneity)
-# library(maxLik)
-# library(statmod)
-# source('D:/Dropbox/Code/endogeneity/R/utilities.R')
-#
-#
-# matVecProd <- function(m, v) {
-#     .Call('_endogeneity_matVecProd', PACKAGE = 'endogeneity', m, v)
-# }
-#
-# groupProd <- function(v, group) {
-#     .Call('_endogeneity_groupProd', PACKAGE = 'endogeneity', v, group)
-# }
-#
-# groupSum <- function(v, group) {
-#     .Call('_endogeneity_groupSum', PACKAGE = 'endogeneity', v, group)
-# }
-#
-# groupSumMat <- function(m, group) {
-#     .Call('_endogeneity_groupSumMat', PACKAGE = 'endogeneity', m, group)
-# }
-
-
 LL_probit_linearRE = function(par,y,d,x,w,group,H=20,verbose=1){
     if(length(par) != ncol(x)+ncol(w)+3) stop("Number of parameters incorrect")
     alpha = par[1:ncol(w)]
@@ -428,36 +405,3 @@ probit_linearRE = function(form_probit, form_linear, id, data=NULL, par=NULL, me
     }
     return (res)
 }
-
-
-# library(MASS)
-# library(data.table)
-# N = 1000
-# period = 5
-# obs = N*period
-# rho = -0.5
-# set.seed(100)
-#
-# e = mvrnorm(N, mu=c(0,0), Sigma=matrix(c(1,rho,rho,1), nrow=2))
-# e1 = e[,1]
-# e2 = e[,2]
-#
-# t = rep(1:period, N)
-# id = rep(1:N, each=period)
-# w = rnorm(N)
-# d = as.numeric(1+w+e1>0)
-# d_long = rep(d, each=period)
-#
-# x = rnorm(obs)
-# y = 1 + x + d_long + rep(e2, each=period) + rnorm(obs)
-#
-# est = probit_linearRE(d~w, y~x+d_long, id, verbose=0, stopUpdate=F)
-# # est2 = probit_linearRE(d~w, y~x+d_long, id, verbose=0, stopUpdate=T)
-# print(est$estimates, digits=3)
-# # est2$estimates
-#
-# # alternative way to call the function
-# dt = data.table(y,x,id,t,d=rep(d, each=period),w=rep(w, each=period))
-# est3 = probit_linearRE(d~w, y~x+d, 'id', dt, verbose=0, stopUpdate=F)
-# est3$estimates
-

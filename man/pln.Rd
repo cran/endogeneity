@@ -78,5 +78,5 @@ est = pln(y~x+z)
 print(est$estimates, digits=3)
 }
 \references{
-Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at https://doi.org/10.1287/isre.2022.1113
+Peng, Jing. (2023) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research, 34(1):67-84. Available at https://doi.org/10.1287/isre.2022.1113
 }

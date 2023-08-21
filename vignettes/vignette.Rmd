@@ -26,7 +26,7 @@ Endogeneity is a key challenge in causal inference. In the absence of plausible 
 
 Model-based identification is usually operationalized in the form of recursive two-stage models, where the dependent variable of the first stage is also the endogenous variable of interest in the second stage. Depending on the types of variables involved in the first and second stages (e.g., continuous, binary, and count), the recursive two-stage models can take many different forms.
 
-The [*endogeneity*](https://CRAN.R-project.org/package=endogeneity) package supports the estimation of the following recursive two-stage models discussed in [Peng (2022)](https://doi.org/10.1287/isre.2022.1113). The models implemented in this package can be used to address the endogeneity of treatment variables in observational studies or the endogeneity of mediators in randomized experiments. 
+The [*endogeneity*](https://CRAN.R-project.org/package=endogeneity) package supports the estimation of the following recursive two-stage models discussed in [Peng (2023)](https://doi.org/10.1287/isre.2022.1113). The models implemented in this package can be used to address the endogeneity of treatment variables in observational studies or the endogeneity of mediators in randomized experiments. 
 
 ```{r Table, echo=FALSE}
 tb = data.frame(
@@ -262,9 +262,9 @@ It can be seen that the parameter estimates are very close to the true values.
 
 ## 4. Notes
 
-When the first stage is nonlinear, the identification of a recursive two-stage model does not require an instrumental variable that appears in the first stage but not the second stage. The identification strength generally increases with the explanatory power of the first stage covariates. Therefore, one can improve the identification by including more control variables. Comprehensive simulation studies and sensitivity analyses for the recursive two-stage models are available in [Peng (2022)](https://doi.org/10.1287/isre.2022.1113).
+When the first stage is nonlinear, the identification of a recursive two-stage model does not require an instrumental variable that appears in the first stage but not the second stage. The identification strength generally increases with the explanatory power of the first stage covariates. Therefore, one can improve the identification by including more control variables. Comprehensive simulation studies and sensitivity analyses for the recursive two-stage models are available in [Peng (2023)](https://doi.org/10.1287/isre.2022.1113).
 
 Empirical researchers are encouraged to try both instrument-based and model-based identification whenever possible. If the two identification strategies relying on different assumptions lead to consistent results, we can be more certain about the validity of our findings.
 
 ## Citations
-Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at <https://doi.org/10.1287/isre.2022.1113>
+Peng, Jing. (2023) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research, 34(1):67-84. Available at <https://doi.org/10.1287/isre.2022.1113>

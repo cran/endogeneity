@@ -132,7 +132,7 @@ Gradient_biprobit = function(par,y1,y2,x1,x2,verbose=1,variance=FALSE){
 #' print(est$estimates, digits=3)
 #' @export
 #' @family endogeneity
-#' @references Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at https://doi.org/10.1287/isre.2022.1113
+#' @references Peng, Jing. (2023) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research, 34(1):67-84. Available at https://doi.org/10.1287/isre.2022.1113
 biprobit = function(form1, form2, data=NULL, par=NULL, method='BFGS', verbose=0){
     # 1.1 parse y1~x1
     mf1 = model.frame(form1, data=data, na.action=NULL, drop.unused.levels=TRUE)

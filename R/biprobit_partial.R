@@ -165,7 +165,7 @@ EM_biprobit_partial = function(par,y1,y2,x1,x2,maxIter=200,tol=1e-6,tol_LL=1e-8,
 #' }
 #' @export
 #' @family endogeneity
-#' @references Peng, Jing. (2022) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research (Forthcoming), Available at https://doi.org/10.1287/isre.2022.1113
+#' @references Peng, Jing. (2023) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research, 34(1):67-84. Available at https://doi.org/10.1287/isre.2022.1113
 biprobit_partial = function(form1, form2, data=NULL, EM=FALSE, par=NULL, method='BFGS', verbose=0, maxIter=500, tol=1e-5, tol_LL=1e-6){
     # 1.1 parse y1~x1
     mf1 = model.frame(form1, data=data, na.action=NULL, drop.unused.levels=TRUE)
