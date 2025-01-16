@@ -135,6 +135,7 @@ Gradient_probit_linear = function(par,y,z,x,w,verbose=1,variance=FALSE){
 #' @family endogeneity
 #' @references Peng, Jing. (2023) Identification of Causal Mechanisms from Randomized Experiments: A Framework for Endogenous Mediation Analysis. Information Systems Research, 34(1):67-84. Available at https://doi.org/10.1287/isre.2022.1113
 probit_linear = function(form_probit, form_linear, data=NULL, par=NULL, method='BFGS', init=c('zero', 'unif', 'norm', 'default')[4], verbose=0){
+    # Note: Be aware that y~x represents the first stage probit model
     # 1.1 parse w~z from linear
     mf = model.frame(form_linear, data=data, na.action=NULL, drop.unused.levels=TRUE)
     w = model.response(mf, "numeric")
@@ -152,7 +153,7 @@ probit_linear = function(form_probit, form_linear, data=NULL, par=NULL, method='
     names(par_probit) = paste0('probit.', names(par_probit))
     par_linear[is.na(par_linear)] = 0
     par_probit[is.na(par_probit)] = 0
-    par = c(par_probit, par_linear, log_sigma=0, tau=0)
+    par = c(par_linear, par_probit, log_sigma=0, tau=0)
     if(init=='unif') par = par - par + runif(length(par))
     if(init=='norm') par = par - par + rnorm(length(par))
     if(init=='zero') par = par - par
@@ -174,7 +175,7 @@ probit_linear = function(form_probit, form_linear, data=NULL, par=NULL, method='
     gvar = Gradient_probit_linear(res$par,y,z,x,w,verbose=verbose-1,variance=TRUE)
     if(any(is.na(gvar$var))){
         warning('NA in Hessian matrix, will reestimate with unif initialization!')
-        return(probit_linear(form_linear, form_probit, data, par, init='unif', verbose=verbose))
+        return(probit_linear(form_probit, form_linear, data, par, init='unif', verbose=verbose))
     }
 
     res = getVarSE(res, gvar=gvar, verbose=verbose)

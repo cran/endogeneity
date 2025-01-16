@@ -91,9 +91,9 @@ Other endogeneity:
 \code{\link{linear_probit}()},
 \code{\link{pln_linear}()},
 \code{\link{pln_probit}()},
+\code{\link{probit_linear}()},
 \code{\link{probit_linearRE}()},
 \code{\link{probit_linear_latent}()},
-\code{\link{probit_linear_partial}()},
-\code{\link{probit_linear}()}
+\code{\link{probit_linear_partial}()}
 }
 \concept{endogeneity}

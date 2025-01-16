@@ -96,9 +96,9 @@ Peng, Jing. (2023) Identification of Causal Mechanisms from Randomized Experimen
 \seealso{
 Other endogeneity: 
 \code{\link{bilinear}()},
+\code{\link{biprobit}()},
 \code{\link{biprobit_latent}()},
 \code{\link{biprobit_partial}()},
-\code{\link{biprobit}()},
 \code{\link{linear_probit}()},
 \code{\link{pln_linear}()},
 \code{\link{pln_probit}()},
